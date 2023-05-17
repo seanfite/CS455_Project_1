@@ -38,6 +38,7 @@ public class Function
     private string date = "";
     private int totalFirstShots = 0;
     private int totalSecondShots = 0;
+    private string tagValue = "";
 
     IAmazonS3 S3Client { get; set; }                        // set up interaction with s3 service
 
@@ -68,11 +69,13 @@ public class Function
                 GetObjectTaggingRequest getTagsRequest = new GetObjectTaggingRequest            // new instance for tagging request
                 {
                     BucketName = s3Event.Bucket.Name,
-                    Key = s3Event.Object.Key
+                    Key = s3Event.Object.Key,                
+                    
                 };
                 GetObjectTaggingResponse objectTags = await this.S3Client.GetObjectTaggingAsync(getTagsRequest);
                 string tags = objectTags.GetType().Name;
                 string tag = objectTags.Tagging.Count > 0 ? objectTags.Tagging[0].Key : string.Empty;  // get tag from s3 object
+                tagValue = objectTags.Tagging.Count > 0 ? objectTags.Tagging[0].Value : string.Empty;
                 if (tag == "xml")           
                 {
                     // Read the XML content from the response stream
@@ -110,15 +113,6 @@ public class Function
                                 totalSecondShots += secondShotValue;
                             }
                         }
-
-                        // Print the extracted data for testing
-                        Console.WriteLine("Site ID: {0}", siteId);
-                        Console.WriteLine("Name: {0}", name);
-                        Console.WriteLine("Zip Code: {0}", zipCode);
-                        Console.WriteLine("Site ID: {0}", siteId);
-                        Console.WriteLine("Date: {0}", date);
-                        Console.WriteLine("First Shots: {0}", totalFirstShots);
-                        Console.WriteLine("Second Shots: {0}", totalSecondShots);
                     }
                 }
                 else if (tag == "json")
@@ -148,14 +142,6 @@ public class Function
                                 totalFirstShots += firstShot;
                                 totalSecondShots += secondShot;
                             }
-
-                            // Print the extracted data
-                            Console.WriteLine("Site ID: {0}", siteId);
-                            Console.WriteLine("Name: {0}", name);
-                            Console.WriteLine("Zip Code: {0}", zipCode);
-                            Console.WriteLine("Date: {0}", date);
-                            Console.WriteLine("First Shots: {0}", totalFirstShots);
-                            Console.WriteLine("Second Shots: {0}", totalSecondShots);
                         }
                     }
                 }
@@ -183,6 +169,21 @@ public class Function
             if (conn.State == ConnectionState.Open)
             {
                 Console.WriteLine("Successfully opened a connection to the database");
+
+                if(tagValue == "correction")               // if tag value == correction, replace last table entry with new one
+                {                  
+                    string deleteDataQuery = "DELETE FROM Data WHERE DataID = (SELECT MAX(DataID) FROM Data)";
+                    using (var deleteDataCommand = new NpgsqlCommand(deleteDataQuery, conn))
+                    {
+                        deleteDataCommand.ExecuteNonQuery();
+                    }
+
+                    string deleteSiteQuery = "DELETE FROM Site WHERE SiteID = (SELECT MAX(SiteID) FROM Site)";
+                    using (var deleteSiteCommand = new NpgsqlCommand(deleteSiteQuery, conn))
+                    {
+                        deleteSiteCommand.ExecuteNonQuery();
+                    }                
+                }
 
                 string insertQuery = "INSERT INTO Data (SiteID, Date, FirstShot, SecondShot) VALUES (@SiteID, @Date, @FirstShot, @SecondShot)";
                 using (var command = new NpgsqlCommand(insertQuery, conn))

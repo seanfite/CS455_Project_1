@@ -30,10 +30,15 @@ namespace UploadDataConsoleApp
             string filePath = args[0];                                        // split terminal call into filePath and tag
             string tagKey = args[1];  
             int position = filePath.LastIndexOf("\\");                        // parse filename from filePath
-            string key = filePath.Substring(position + 1);                    
+            string key = filePath.Substring(position + 1);
+            string tagValue = "";
+            if(key.Contains("Correction") || key.Contains("correction"))
+            {
+                tagValue = "correction";
+            }
             AWSCredentials credentials = GetAWSCredentialsByName("default");                    // retrieve aws credentials
             AmazonS3Client s3Client = new AmazonS3Client(credentials, RegionEndpoint.USEast1);  // create aws instance
-            await UploadFileToS3(s3Client, filePath, bucketName, key, tagKey);                  // call method to upload file to s3 bucket
+            await UploadFileToS3(s3Client, filePath, bucketName, key, tagKey, tagValue);                  // call method to upload file to s3 bucket
             s3Client.Dispose();
         }
 
@@ -53,13 +58,13 @@ namespace UploadDataConsoleApp
         }
                                                                                         // method to upload file to s3
                                                                                         // passing in terminal command objects 
-        static async Task UploadFileToS3(AmazonS3Client s3Client, string filePath, string bucketName, string key, string tagKey)
+        static async Task UploadFileToS3(AmazonS3Client s3Client, string filePath, string bucketName, string key, string tagKey, string tagValue)
         {
             try                                                                  
             {
                 var tags = new List<Tag>                                // add tag to s3 bucket file upload
                 {
-                    new Tag { Key = tagKey, Value = "" }
+                    new Tag { Key = tagKey, Value = tagValue }
                 };
                 await s3Client.PutObjectAsync(new PutObjectRequest      // send request to upload file to s3 bucket
                 {
