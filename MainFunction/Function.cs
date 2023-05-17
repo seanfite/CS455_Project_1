@@ -170,41 +170,57 @@ public class Function
             {
                 Console.WriteLine("Successfully opened a connection to the database");
 
-                if(tagValue == "correction")               // if tag value == correction, replace last table entry with new one
-                {                  
-                    string deleteDataQuery = "DELETE FROM Data WHERE DataID = (SELECT MAX(DataID) FROM Data)";
-                    using (var deleteDataCommand = new NpgsqlCommand(deleteDataQuery, conn))
+                string selectQuery = "SELECT COUNT(*) FROM Data WHERE SiteID = @SiteID";
+                using (var selectCommand = new NpgsqlCommand(selectQuery, conn))
+                {
+                    selectCommand.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
+
+                    int count = Convert.ToInt32(selectCommand.ExecuteScalar());
+                    if (count > 0)
                     {
-                        deleteDataCommand.ExecuteNonQuery();
+                        if (tagValue == "") // If tag value is empty, send an error message
+                        {
+                            Console.WriteLine("Entry already exists.");
+                            return String.Empty;
+                        }
+                        else // If tag value is "correction", perform an UPDATE
+                        {
+                            Console.WriteLine("we made it to correction");
+                            string updateQuery = "UPDATE Data SET Date = @Date, FirstShot = @FirstShot, SecondShot = @SecondShot WHERE SiteID = @SiteID";
+                            using (var updateCommand = new NpgsqlCommand(updateQuery, conn))
+                            {
+                                updateCommand.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
+                                updateCommand.Parameters.AddWithValue("@Date", date); // Replace name with the actual value for Date
+                                updateCommand.Parameters.AddWithValue("@FirstShot", totalFirstShots); // Replace FirstShots with the actual value for FirstShots
+                                updateCommand.Parameters.AddWithValue("@SecondShot", totalSecondShots); // Replace SecondShots with the actual value for SecondShots
+                                updateCommand.ExecuteNonQuery();
+                            }
+                        }
                     }
-
-                    string deleteSiteQuery = "DELETE FROM Site WHERE SiteID = (SELECT MAX(SiteID) FROM Site)";
-                    using (var deleteSiteCommand = new NpgsqlCommand(deleteSiteQuery, conn))
+                    else
                     {
-                        deleteSiteCommand.ExecuteNonQuery();
-                    }                
-                }
+                        string insertQuery = "INSERT INTO Data (SiteID, Date, FirstShot, SecondShot) VALUES (@SiteID, @Date, @FirstShot, @SecondShot)";
+                        using (var command = new NpgsqlCommand(insertQuery, conn))
+                        {
+                            command.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
+                            command.Parameters.AddWithValue("@Date", date); // Replace name with the actual value for Date
+                            command.Parameters.AddWithValue("@FirstShot", totalFirstShots); // Replace FirstShots with the actual value for FirstShots
+                            command.Parameters.AddWithValue("@SecondShot", totalSecondShots); // Replace SecondShots with the actual value for SecondShots
+                            command.ExecuteNonQuery();
+                        }
+                        insertQuery = "INSERT INTO Site (SiteID, Name, ZipCode) VALUES (@SiteID, @Name, @ZipCode)";
+                        using (var command = new NpgsqlCommand(insertQuery, conn))
+                        {
+                            command.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
+                            command.Parameters.AddWithValue("@Name", name); // Replace name with the actual value for Name
+                            command.Parameters.AddWithValue("@ZipCode", zipCode); // Replace zipCode with the actual value for ZipCode
+                            command.ExecuteNonQuery();
+                        }
 
-                string insertQuery = "INSERT INTO Data (SiteID, Date, FirstShot, SecondShot) VALUES (@SiteID, @Date, @FirstShot, @SecondShot)";
-                using (var command = new NpgsqlCommand(insertQuery, conn))
-                {
-                    command.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
-                    command.Parameters.AddWithValue("@Date", date); // Replace name with the actual value for Date
-                    command.Parameters.AddWithValue("@FirstShot", totalFirstShots); // Replace FirstShots with the actual value for FirstShots
-                    command.Parameters.AddWithValue("@SecondShot", totalSecondShots); // Replace SecondShots with the actual value for SecondShots
-                    command.ExecuteNonQuery();
+                        conn.Close();
+                        conn.Dispose();
+                    }
                 }
-                insertQuery = "INSERT INTO Site (SiteID, Name, ZipCode) VALUES (@SiteID, @Name, @ZipCode)";
-                using (var command = new NpgsqlCommand(insertQuery, conn))
-                {
-                    command.Parameters.AddWithValue("@SiteID", siteId); // Replace siteId with the actual value for SiteID
-                    command.Parameters.AddWithValue("@Name", name); // Replace name with the actual value for Name
-                    command.Parameters.AddWithValue("@ZipCode", zipCode); // Replace zipCode with the actual value for ZipCode
-                    command.ExecuteNonQuery();
-                }
-
-                conn.Close();
-                conn.Dispose();
             }
             else
             {
